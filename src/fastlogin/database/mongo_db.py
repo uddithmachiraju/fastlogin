@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from fastlogin.config.logging import get_logger
@@ -19,6 +21,12 @@ class MongoDB(Database):
         """Get the default database from the MongoDB client."""
 
         return self.client.get_default_database()
+
+    async def list_collections(self) -> list[str]:
+        """List all collections in the database."""
+
+        database = await self.get_database()
+        return await database.list_collection_names()
 
     async def close_db(self) -> None:
         """Close the MongoDB client connection."""
