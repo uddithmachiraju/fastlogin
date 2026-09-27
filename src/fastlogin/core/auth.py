@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from fastlogin.config.logging import get_logger
 from fastlogin.core.config import OperationConfig, OperationType
 from fastlogin.database.mongo_db import MongoDB
+from fastlogin.operations.register import register_user
 
 logger = get_logger(__name__)
 
@@ -130,5 +131,7 @@ class FastLogin:
             raise ConnectionError(f"Failed to connect to the database: {self.database_name}")
         logger.info("Successfully connected to the database.", database_name=self.database_name)
 
-    async def register(self) -> None:
+    async def register(self, payload: BaseModel) -> None:
         """Register a new user in the database."""
+
+        await register_user(payload, self)

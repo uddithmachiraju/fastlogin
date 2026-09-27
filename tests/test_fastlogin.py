@@ -67,3 +67,25 @@ async def test_fastlogin_configure_with_valid_inputs():
 
     await auth.configure(operation=OperationType.REGISTER, collection="users", schema=UserRegistrationSchema)
     print(auth.configurations)
+
+@pytest.mark.asyncio
+async def test_fastlogin_register_user():
+    database_url=os.getenv("database_url"),
+    database_name=os.getenv("database_name"),
+
+    auth = FastLogin(
+        database_url=database_url,
+        database_name=database_name,
+    )
+
+    await auth.initialize()
+    await auth.configure(operation=OperationType.REGISTER, collection="users", schema=UserRegistrationSchema)
+
+    user_payload = UserRegistrationSchema(
+        username="testuser",
+        full_name="Test User",
+        email="testuser@example.com",
+        password="testpassword"
+    )
+
+    await auth.register(payload=user_payload)
