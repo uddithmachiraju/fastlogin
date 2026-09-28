@@ -25,9 +25,9 @@ async def register_user(payload: BaseModel, auth: FastLogin) -> None:
     config = auth.configurations[OperationType.REGISTER]
 
     # Validate the payload against the schema
-    if not isinstance(payload, config.database_schema):
-        logger.error("Payload does not match the configured schema.", payload=payload, schema=config.database_schema.__name__)
-        raise TypeError(f"Payload does not match the configured schema: {config.database_schema.__name__}")
+    if not isinstance(payload, config.request_schema):
+        logger.error("Payload does not match the configured schema.", payload=payload, schema=config.request_schema.__name__)
+        raise TypeError(f"Payload does not match the configured schema: {config.request_schema.__name__}")
 
     # Check if the user already exists based on the identifier fields
     identifier_query = {field: getattr(payload, field) for field in config.identifier_fields}
@@ -41,9 +41,13 @@ async def register_user(payload: BaseModel, auth: FastLogin) -> None:
 
     # create database document
     database_data = {}
-    for field_name in config.database_schema.model_fields:
+    for field_name, field in config.database_schema.model_fields.items():
         if field_name in user_document:
-            database_data[field_name] = getattr(payload, field_name)
+            database_data[field_name] = getattr(payload, field_name) 
+
+        # default fields
+        elif not field.is_required():
+            database_data[field_name] = field.default
 
     # Add self managed fields to the database document
     now = datetime.now(timezone.utc)

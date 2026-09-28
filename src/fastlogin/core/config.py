@@ -23,7 +23,7 @@ class OperationConfig:
     operation: OperationType
     collection: AsyncIOMotorCollection
     database_schema: type[BaseModel]
-    request_schema: type[BaseModel] | None = None
+    request_schema: type[BaseModel]
     identifier_fields: list[str] = field(default_factory=list)
     password_field: str | None = None
 

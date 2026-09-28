@@ -41,20 +41,10 @@ class UserRegistrationDatabaseSchema(BaseModel):
         }
     )
     is_active: bool = Field(
-        ..., description="Indicates whether the user is active.",
-        json_schema_extra={
-            "fastlogin": {
-                "auto_managed": True
-            }
-        }
+        False, description="Indicates whether the user is active.",
     )
     is_email_verified: bool = Field(
-        ..., description="Indicates whether the user's email is verified.",
-        json_schema_extra={
-            "fastlogin": {
-                "auto_managed": True
-            }
-        }
+        False, description="Indicates whether the user's email is verified.",
     )
 
 class UserRegistrationRequestSchema(BaseModel):
@@ -120,4 +110,13 @@ async def test_fastlogin_register_user():
             "is_email_verified": True, 
             "is_active": True    
         }
+    )
+
+    await auth.register(
+        payload = UserRegistrationRequestSchema(
+            username="sanjay", 
+            full_name="M Sanjay", 
+            email="test@gmail.com", 
+            password="sanjay"
+        )
     )

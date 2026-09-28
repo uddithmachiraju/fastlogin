@@ -115,7 +115,7 @@ class FastLogin:
             operation=operation,
             collection=self.collection,
             database_schema=schema,
-            request_schema=None,
+            request_schema=BaseModel,
             identifier_fields=identifier_fields,
             password_field=password_field,
             indexed_fields=indexed_fields,
@@ -168,24 +168,24 @@ class FastLogin:
             unset_fields=unset_fields or [],
         )
 
-        # Get the database instance
-        database = await self.db.get_database()
+        # # Get the database instance
+        # database = await self.db.get_database()
 
-        if database is None:
-            logger.error("Failed to get the database instance.", database_name=self.database_name)
-            raise ConnectionError(f"Failed to get the database instance: {self.database_name}")  
+        # if database is None:
+        #     logger.error("Failed to get the database instance.", database_name=self.database_name)
+        #     raise ConnectionError(f"Failed to get the database instance: {self.database_name}")  
 
-        # check if the collection exists, if not create it
-        if collection not in await self.db.list_collections():
-            await database.create_collection(collection)
-            logger.info("Collection created for update rule.", collection=collection, database_name=self.database_name)
-        else:
-            logger.info("Collection already exists for update rule.", collection=collection, database_name=self.database_name)      
+        # # check if the collection exists, if not create it
+        # if collection not in await self.db.list_collections():
+        #     await database.create_collection(collection)
+        #     logger.info("Collection created for update rule.", collection=collection, database_name=self.database_name)
+        # else:
+        #     logger.info("Collection already exists for update rule.", collection=collection, database_name=self.database_name)      
 
         # store the update rule
         self.update_rules[event] = rule
 
-        logger.info("Update rule added for event.", event=event.value, collection=collection, database_name=self.database_name)
+        logger.info("Update rule added for event.", event_name=event.value, collection=collection, database_name=self.database_name)
 
     async def initialize(self) -> None:
         """Initialize the FastLogin instance by checking the database connection."""
