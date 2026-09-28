@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 from fastlogin.config.logging import get_logger
-from fastlogin.core.config import OperationConfig, OperationType
+from fastlogin.core.config import Event, OperationConfig, OperationType, UpdateRule
 from fastlogin.database.mongo_db import MongoDB
 from fastlogin.operations.register import register_user
 
@@ -20,7 +22,7 @@ class FastLogin:
 
         self.configurations: dict[OperationType, OperationConfig] = {}
 
-    async def configure(self, operation: OperationType, collection: str, schema: type[BaseModel]) -> None:
+    async def configure_collection(self, operation: OperationType, collection: str, schema: type[BaseModel]) -> None:
         """Configure the database collection and schema with user data."""
 
         if not isinstance(operation, OperationType):
@@ -111,15 +113,79 @@ class FastLogin:
         # store the configuration
         self.configurations[operation] = OperationConfig(
             operation=operation,
-            schema=schema,
             collection=self.collection,
+            database_schema=schema,
+            request_schema=None,
             identifier_fields=identifier_fields,
             password_field=password_field,
             indexed_fields=indexed_fields,
             unique_fields=unique_fields,
         )
+        self.update_rules: dict[Event, UpdateRule] = {}
         
         logger.info("Collection and schema configured.", collection=collection, schema=schema.__name__, database_name=self.database_name)
+
+    async def configure_request(self, operation: OperationType, schema: type[BaseModel]) -> None:
+        """Configure the request schema for a specific operation."""
+
+        if not isinstance(operation, OperationType):
+            logger.error("Invalid operation type provided.", operation=operation)
+            raise TypeError(f"Invalid operation type: {operation}. Must be one of {list(OperationType)}.")
+
+        if operation not in self.configurations:
+            logger.error("Operation not configured yet.", operation=operation.value)
+            raise ValueError(f"Operation {operation.value} is not configured yet. Please configure the collection and schema first.")
+
+        if not isinstance(schema, type) or not issubclass(schema, BaseModel):
+            logger.error("Schema must be a subclass of pydantic.BaseModel.", schema=schema)
+            raise TypeError("Schema must be a subclass of pydantic.BaseModel.")
+
+        # store the request schema
+        self.configurations[operation].request_schema = schema
+
+        logger.info("Request schema configured for operation.", operation=operation.value, request=schema.__name__, database_name=self.database_name)
+
+    async def add_update_rule(self, event: Event, collection: str, match_fields: dict[str, str], set_fields: dict[str, Any] | None = None, unset_fields: list[str] | None = None) -> None:
+        """Add an update rule for a specific event."""
+
+        if not isinstance(event, Event):
+            logger.error("Invalid event type provided.", event=event)
+            raise TypeError(f"Invalid event type: {event}. Must be one of {list(Event)}.")
+
+        if not collection or not collection.strip():
+            logger.error("Collection name cannot be empty.", collection=collection)
+            raise ValueError("Collection name cannot be empty.")
+
+        if not match_fields:
+            logger.error("Match fields cannot be empty.", match_fields=match_fields)
+            raise ValueError("Match fields cannot be empty.")
+
+        rule = UpdateRule(
+            event=event,
+            collection=collection,
+            match_fields=match_fields,
+            set_fields=set_fields or {},
+            unset_fields=unset_fields or [],
+        )
+
+        # Get the database instance
+        database = await self.db.get_database()
+
+        if database is None:
+            logger.error("Failed to get the database instance.", database_name=self.database_name)
+            raise ConnectionError(f"Failed to get the database instance: {self.database_name}")  
+
+        # check if the collection exists, if not create it
+        if collection not in await self.db.list_collections():
+            await database.create_collection(collection)
+            logger.info("Collection created for update rule.", collection=collection, database_name=self.database_name)
+        else:
+            logger.info("Collection already exists for update rule.", collection=collection, database_name=self.database_name)      
+
+        # store the update rule
+        self.update_rules[event] = rule
+
+        logger.info("Update rule added for event.", event=event.value, collection=collection, database_name=self.database_name)
 
     async def initialize(self) -> None:
         """Initialize the FastLogin instance by checking the database connection."""

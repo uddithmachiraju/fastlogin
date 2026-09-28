@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -24,9 +25,9 @@ async def register_user(payload: BaseModel, auth: FastLogin) -> None:
     config = auth.configurations[OperationType.REGISTER]
 
     # Validate the payload against the schema
-    if not isinstance(payload, config.schema):
-        logger.error("Payload does not match the configured schema.", payload=payload, schema=config.schema.__name__)
-        raise TypeError(f"Payload does not match the configured schema: {config.schema.__name__}")
+    if not isinstance(payload, config.database_schema):
+        logger.error("Payload does not match the configured schema.", payload=payload, schema=config.database_schema.__name__)
+        raise TypeError(f"Payload does not match the configured schema: {config.database_schema.__name__}")
 
     # Check if the user already exists based on the identifier fields
     identifier_query = {field: getattr(payload, field) for field in config.identifier_fields}
@@ -38,8 +39,19 @@ async def register_user(payload: BaseModel, auth: FastLogin) -> None:
     # Create a new user document from the payload
     user_document = payload.model_dump() 
 
+    # create database document
+    database_data = {}
+    for field_name in config.database_schema.model_fields:
+        if field_name in user_document:
+            database_data[field_name] = getattr(payload, field_name)
+
+    # Add self managed fields to the database document
+    now = datetime.now(timezone.utc)
+    database_data["created_at"] = now
+    database_data["updated_at"] = now
+
     # Insert the new user document into the collection
-    result = await config.collection.insert_one(user_document)
+    result = await config.collection.insert_one(database_data)
     if not result.acknowledged:
         logger.error("Failed to insert the new user document.", user_document=user_document)
         raise RuntimeError("Failed to register the new user. Please try again.") 
